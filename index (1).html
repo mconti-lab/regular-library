@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Matchmaker</title>
+    <!-- Tailwind Play CDN (runtime) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Tailwind config (optional, keeps it neat)
+      tailwind.config = {
+        theme: {
+          extend: {},
+        },
+      };
+    </script>
+    <!-- Canvas Confetti CDN (global window.confetti) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- React 18 + ReactDOM UMD -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel Standalone to transpile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      /* Tiny CSS animation for wrong drop */
+      @keyframes shake {
+        10%, 90% { transform: translateX(-1px); }
+        20%, 80% { transform: translateX(2px); }
+        30%, 50%, 70% { transform: translateX(-4px); }
+        40%, 60% { transform: translateX(4px); }
+      }
+      .animate-shake { animation: shake 0.45s linear; }
+    </style>
+  </head>
+  <body class="bg-slate-100">
+    <div id="root" class="min-h-screen"></div>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useState } = React;
+
+      function JobMatchGame() {
+        // ----- Game data -----
+        const ROLE_BANK = useMemo(
+          () => [
+            {
+              id: "r1",
+              title: "Accountant",
+              summary:
+                "Prepares financial reports, manages budgets, and ensures compliance with standards.",
+              clues: ["Detail‑oriented", "Loves spreadsheets", "Understands debits & credits"],
+            },
+            {
+              id: "r2",
+              title: "Graphic Designer",
+              summary:
+                "Creates visual assets for print and digital campaigns using design principles.",
+              clues: ["Adobe wizard", "Strong sense of colour", "Builds brand identities"],
+            },
+            {
+              id: "r3",
+              title: "Software Developer",
+              summary:
+                "Builds and tests applications, collaborates with teams, and ships features.",
+              clues: ["Writes clean code", "Debugs bugs", "Enjoys problem‑solving"],
+            },
+            {
+              id: "r4",
+              title: "HR Manager",
+              summary:
+                "Recruits, onboards, and supports staff; shapes culture and compliance.",
+              clues: ["Great communicator", "Understands policies", "Mediates conflicts"],
+            },
+            {
+              id: "r5",
+              title: "Marketing Analyst",
+              summary:
+                "Turns customer and campaign data into insights that drive growth.",
+              clues: ["Loves data", "Google Analytics", "A/B testing"],
+            },
+            {
+              id: "r6",
+              title: "Electrician",
+              summary:
+                "Installs and maintains electrical systems safely and to code.",
+              clues: ["Problem‑solver", "Hands‑on", "Reads wiring diagrams"],
+            },
+            {
+              id: "r7",
+              title: "Nurse",
+              summary:
+                "Provides patient care, monitors health, and works within clinical teams.",
+              clues: ["Compassionate", "Calm under pressure", "Keen observer"],
+            },
+            {
+              id: "r8",
+              title: "Chef",
+              summary:
+                "Designs menus and leads kitchen operations to deliver consistent quality.",
+              clues: ["Knife skills", "Time management", "Food safety"],
+            },
+          ],
+          []
+        );
+
+        const PEOPLE_BANK = useMemo(
+          () => [
+            { id: "p1", name: "Cecilia", blurb: "Keeps group budgets tidy and double‑checks totals.", traits: ["Organised", "Careful", "Budgets"], match: "" },
+            { id: "p2", name: "Nirmal", blurb: "Enjoys fixing things and following clear safety steps.", traits: ["Practical", "Careful", "Tools"], match: "r6" },
+            { id: "p3", name: "Aaron", blurb: "Builds neat tables in spreadsheets for fun.", traits: ["Excel", "Formulas", "Neat"], match: "" },
+            { id: "p4", name: "Shania", blurb: "Has an eye for layouts and colours in slides.", traits: ["Creative", "Layouts", "Fonts"], match: "" },
+            { id: "p5", name: "Sebastian", blurb: "Loves to experiment in the kitchen and plate things nicely.", traits: ["Cooking", "Timing", "Food safety"], match: "r8" },
+            { id: "p6", name: "Ken", blurb: "Tinkers with apps and enjoys problem‑solving.", traits: ["Curious", "Tech", "Debugging"], match: "" },
+            { id: "p7", name: "Lewis", blurb: "Keeps the group on track and includes everyone.", traits: ["People‑focused", "Calm", "Mediator"], match: "r4" },
+            { id: "p8", name: "Shrea", blurb: "Writes very clear notes and instructions for teammates.", traits: ["Clear writer", "Reliable", "Detail"], match: "" },
+            { id: "p9", name: "Anmol", blurb: "Enjoys balancing numbers and spotting small mistakes.", traits: ["Accurate", "Numbers", "Ethical"], match: "" },
+            { id: "p10", name: "Lakshath", blurb: "Sketches quick logo ideas and notices tiny design tweaks.", traits: ["Branding", "Figma", "Colour"], match: "" },
+            { id: "p11", name: "Kaylin", blurb: "Always asks what the data is telling us.", traits: ["Charts", "Insights", "Curious"], match: "r5" },
+            { id: "p12", name: "Andrei", blurb: "Builds small projects and can talk APIs for days.", traits: ["JavaScript", "APIs", "Git"], match: "r3" },
+            { id: "p13", name: "Harshita", blurb: "Colour‑codes ledgers and loves a tidy balance.", traits: ["Spreadsheets", "Accuracy", "Debits/Credits"], match: "r1" },
+            { id: "p14", name: "Tanishka", blurb: "Great with time‑lines and visual explainer posters.", traits: ["Design", "Canva", "Communication"], match: "" },
+            { id: "p15", name: "Tanisha", blurb: "Checks everyone’s roles and keeps things fair.", traits: ["Empathy", "Organisation", "Policies"], match: "" },
+            { id: "p16", name: "Jay", blurb: "Makes concise stand‑ups and keeps tasks moving.", traits: ["Teamwork", "Planning", "Calm"], match: "" },
+            { id: "p17", name: "Simone", blurb: "Turns briefs into clean visuals with strong typography.", traits: ["Illustration", "Typography", "Figma"], match: "r2" },
+            { id: "p18", name: "Arie", blurb: "Enjoys hands‑on work and reading circuit diagrams.", traits: ["Hands‑on", "Safety", "Diagrams"], match: "" },
+            { id: "p19", name: "Jayvie", blurb: "Puts together tidy pitch decks and loves presenting.", traits: ["Slides", "Speaking", "Structure"], match: "" },
+            { id: "p20", name: "Ria", blurb: "Calm under pressure and very attentive to others’ needs.", traits: ["Caring", "Observant", "Team player"], match: "r7" },
+          ],
+          []
+        );
+
+        const ROLE_MATCHES = useMemo(() => ({
+          r1: ["p13","p3","p9","p1"], // Accountant
+          r2: ["p17","p4","p14","p19","p10"], // Graphic Designer
+          r3: ["p12","p6","p16"], // Software Developer
+          r4: ["p7","p15","p8"], // HR Manager
+          r5: ["p11"], // Marketing Analyst
+          r6: ["p2","p18"], // Electrician
+          r7: ["p20"], // Nurse
+          r8: ["p5"], // Chef
+        }), []);
+
+        // ----- Helpers -----
+        const shuffle = (arr) => arr.slice().sort(() => Math.random() - 0.5);
+        const getPerson = (id, list) => list.find((p) => p.id === id);
+
+        // ----- State -----
+        const [roles, setRoles] = useState(() => shuffle(ROLE_BANK));
+        const [people, setPeople] = useState(() => shuffle(PEOPLE_BANK));
+        const [placed, setPlaced] = useState({}); // roleId -> personId[]
+        const [picked, setPicked] = useState(null); // personId
+        const [score, setScore] = useState(0);
+        const [streak, setStreak] = useState(0);
+        const [wrong, setWrong] = useState(null);
+        const [elapsed, setElapsed] = useState(0);
+        const [running, setRunning] = useState(false);
+        const [popped, setPopped] = useState(false);
+
+        const totalPeople = PEOPLE_BANK.length;
+        const correctCount = Object.values(placed).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
+
+        // Stopwatch
+        useEffect(() => {
+          if (!running || correctCount === totalPeople) return;
+          const t = setTimeout(() => setElapsed((s) => s + 1), 1000);
+          return () => clearTimeout(t);
+        }, [running, correctCount, totalPeople, elapsed]);
+
+        // Stop the clock + confetti
+        useEffect(() => {
+          if (correctCount === totalPeople) {
+            if (running) setRunning(false);
+            if (!popped) {
+              try {
+                if (window.confetti) {
+                  window.confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+                }
+              } catch (e) {}
+              setPopped(true);
+            }
+          }
+        }, [correctCount, totalPeople, running, popped]);
+
+        // Actions
+        function resetRound() {
+          setRoles(shuffle(ROLE_BANK));
+          setPeople(shuffle(PEOPLE_BANK));
+          setPlaced({});
+          setPicked(null);
+          setScore(0);
+          setStreak(0);
+          setWrong(null);
+          setElapsed(0);
+          setRunning(false);
+          setPopped(false);
+        }
+
+        function handleDrop(roleId, personId) {
+          if (!personId) return;
+
+          const allowed = ROLE_MATCHES[roleId] || [];
+          const current = Array.isArray(placed[roleId]) ? placed[roleId] : [];
+          const alreadyHere = current.includes(personId);
+          const roleFilled = current.length >= allowed.length && allowed.length > 0;
+          if (alreadyHere || roleFilled) return;
+
+          const isCorrect = allowed.includes(personId);
+
+          if (isCorrect) {
+            setPlaced((prev) => {
+              const next = { ...prev };
+              // remove this person from any other role arrays first
+              Object.keys(next).forEach((r) => {
+                if (Array.isArray(next[r])) next[r] = next[r].filter((id) => id !== personId);
+              });
+              const arr = Array.isArray(next[roleId]) ? next[roleId].slice() : [];
+              arr.push(personId);
+              next[roleId] = arr;
+              return next;
+            });
+            setPeople((prev) => prev.filter((p) => p.id !== personId));
+            setScore((s) => s + 100 + streak * 10);
+            setStreak((x) => x + 1);
+            setWrong(null);
+          } else {
+            setScore((s) => Math.max(0, s - 25));
+            setStreak(0);
+            setWrong(roleId);
+            setTimeout(() => setWrong(null), 450);
+          }
+
+          setPicked(null);
+        }
+
+        function timeString(s) {
+          const m = Math.floor(s / 60).toString().padStart(2, "0");
+          const sec = (s % 60).toString().padStart(2, "0");
+          return `${m}:${sec}`;
+        }
+
+        const Pill = ({ children }) => (
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium">
+            {children}
+          </span>
+        );
+
+        function Header() {
+          return (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold">Job Matchmaker</h1>
+                <Pill>{roles.length} roles</Pill>
+                <Pill>Matched: {correctCount}/{totalPeople}</Pill>
+                <Pill>Score: {score}</Pill>
+                <Pill>Streak: {streak}</Pill>
+                <Pill>⏱ {timeString(elapsed)}</Pill>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRunning((r) => !r)}
+                  className="rounded-xl bg-black px-3 py-1.5 text-sm font-semibold text-white shadow hover:bg-black/90"
+                >
+                  {running ? "Pause" : "Start"}
+                </button>
+                <button
+                  onClick={() => { setElapsed(0); setRunning(false); setPopped(false); }}
+                  className="rounded-xl border px-3 py-1.5 text-sm font-semibold hover:bg-gray-50"
+                >
+                  Reset clock
+                </button>
+                <button
+                  onClick={resetRound}
+                  className="rounded-xl border px-3 py-1.5 text-sm font-semibold hover:bg-gray-50"
+                >
+                  New round
+                </button>
+              </div>
+              {!running && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  ⏱ Press <span className="font-semibold">Start</span> to begin. The game is locked until the stopwatch is running.
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        function HelpBar() {
+          return (
+            <div className="mb-5 rounded-2xl border bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-gray-700">
+                  <strong>How to play:</strong> Click a <em>person</em> to select them (card highlights), then click a
+                  matching <em>job</em> to place them. Correct = points and streak; wrong = small penalty. Aim for a perfect run!
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPeople((prev) => prev.slice().sort(() => Math.random() - 0.5))}
+                    className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+                  >
+                    Shuffle people
+                  </button>
+                  <button
+                    onClick={() => setPicked(null)}
+                    className="rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function PersonCard({ p }) {
+          const isPicked = picked === p.id;
+          return (
+            <button
+              onClick={() => { if (!running) return; setPicked((sel) => (sel === p.id ? null : p.id)); }}
+              className={\`group w-full rounded-2xl border bg-white p-3 text-left shadow-sm transition hover:shadow \${isPicked ? "ring-2 ring-blue-500" : ""}\`}
+              aria-pressed={isPicked}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold">{p.name}</div>
+                  <div className="mt-1 text-xs text-gray-600">{p.blurb}</div>
+                </div>
+                <div className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                  Person
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {p.traits.map((t) => (
+                  <Pill key={t}>{t}</Pill>
+                ))}
+              </div>
+            </button>
+          );
+        }
+
+        function RoleSlot({ r }) {
+          const assignedArr = Array.isArray(placed[r.id]) ? placed[r.id] : [];
+          const allowed = ROLE_MATCHES[r.id] || [];
+          const isLocked = assignedArr.length >= allowed.length && allowed.length > 0;
+
+          return (
+            <div
+              className={\`relative h-full w-full rounded-2xl border bg-white p-4 shadow-sm transition \${(wrong === r.id) ? "animate-shake" : ""} \${isLocked ? "ring-2 ring-emerald-500" : ""}\`}
+              onClick={() => {
+                if (!running) return;
+                if (isLocked) return;
+                if (picked) handleDrop(r.id, picked);
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && picked && running && !isLocked) handleDrop(r.id, picked);
+              }}
+            >
+              <div className="mb-1 flex items-start justify-between gap-2">
+                <div className="text-base font-bold">{r.title}</div>
+                <div className="flex items-center gap-2">
+                  {isLocked && (
+                    <span className="rounded-md bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-700">Locked</span>
+                  )}
+                  <div className="shrink-0 rounded-lg bg-indigo-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                    Job
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm text-gray-700">{r.summary}</div>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {r.clues.map((c) => (
+                  <Pill key={c}>{c}</Pill>
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-xl border border-dashed bg-gray-50 p-3 text-sm text-gray-600">
+                {assignedArr.length ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      {assignedArr.map((pid) => {
+                        const p = people.find((x) => x.id === pid) || PEOPLE_BANK.find((x) => x.id === pid) || { name: pid };
+                        return (
+                          <span key={pid} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold">
+                            {p.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {isLocked ? (
+                      <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">Locked</span>
+                    ) : (
+                      <span className="rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700">More needed</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs">Click to place the selected person.</div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        function Results() {
+          const isDoneLocal = correctCount === totalPeople;
+          if (!isDoneLocal) return null;
+          const total = totalPeople;
+          const percent = Math.round((correctCount / total) * 100);
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+              <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-2xl font-bold">Round complete</h2>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border p-4">
+                    <div className="text-sm text-gray-500">Accuracy</div>
+                    <div className="text-3xl font-extrabold">{percent}%</div>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <div className="text-sm text-gray-500">Score</div>
+                    <div className="text-3xl font-extrabold">{score}</div>
+                  </div>
+                  <div className="rounded-xl border p-4">
+                    <div className="text-sm text-gray-500">Time</div>
+                    <div className="text-3xl font-extrabold">{timeString(elapsed)}</div>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={resetRound}
+                    className="rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white shadow hover:bg-black/90"
+                  >
+                    Play again
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="mx-auto max-w-6xl p-4 sm:p-6">
+            <Header />
+            <HelpBar />
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              {/* People list */}
+              <section className="md:col-span-2">
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-600">
+                  People
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  {people.map((p) => (
+                    <PersonCard key={p.id} p={p} />
+                  ))}
+                </div>
+              </section>
+
+              {/* Role slots */}
+              <section className="md:col-span-3">
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-600">
+                  Jobs
+                </h2>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {roles.map((r) => (
+                    <RoleSlot key={r.id} r={r} />
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <footer className="mt-6 text-center text-xs text-gray-500">
+              Tip: Click a person, then click a job. The stopwatch tracks your time.
+            </footer>
+
+            <Results />
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<JobMatchGame />);
+    </script>
+  </body>
+</html>
